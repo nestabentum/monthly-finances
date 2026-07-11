@@ -1,8 +1,9 @@
 {
-  "name": "temp-init",
+  "name": "recurrFin",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "homepage": "https://nestabentum.github.io/monthly-finances/",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
