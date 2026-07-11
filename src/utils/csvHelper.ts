@@ -45,13 +45,14 @@ function parseCsvLine(line: string): string[] {
  * Exports CostItems to a CSV string.
  */
 export function exportToCsv(costs: CostItem[]): string {
-  const headers = ['Name', 'Amount', 'Frequency', 'Category', 'BankAccount'];
+  const headers = ['Name', 'Amount', 'Frequency', 'Category', 'BankAccount', 'LastDueDate'];
   const rows = costs.map((cost) => [
     escapeCsvValue(cost.name),
     escapeCsvValue(cost.amount),
     escapeCsvValue(cost.frequency),
     escapeCsvValue(cost.category),
     escapeCsvValue(cost.bankAccount),
+    escapeCsvValue(cost.lastDueDate || ''),
   ]);
   
   return [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
@@ -75,6 +76,7 @@ export function parseCsv(csvContent: string): Omit<CostItem, 'id'>[] {
   const frequencyIndex = headerRow.findIndex(h => /freq/i.test(h));
   const categoryIndex = headerRow.findIndex(h => /cat/i.test(h));
   const bankAccountIndex = headerRow.findIndex(h => /bank|acc/i.test(h));
+  const lastDueDateIndex = headerRow.findIndex(h => /last.*due|due.*date/i.test(h));
 
   // Validation of headers
   if (nameIndex === -1 || amountIndex === -1 || frequencyIndex === -1 || categoryIndex === -1 || bankAccountIndex === -1) {
@@ -123,12 +125,26 @@ export function parseCsv(csvContent: string): Omit<CostItem, 'id'>[] {
       throw new Error(`Row ${rowNum}: Bank Account is required.`);
     }
 
+    // Optional: parse lastDueDate if column exists
+    let lastDueDate: string | undefined;
+    if (lastDueDateIndex !== -1) {
+      const dateStr = values[lastDueDateIndex]?.trim();
+      if (dateStr) {
+        const parsed = new Date(dateStr);
+        if (isNaN(parsed.getTime())) {
+          throw new Error(`Row ${rowNum}: LastDueDate "${dateStr}" is not a valid date.`);
+        }
+        lastDueDate = parsed.toISOString().split('T')[0];
+      }
+    }
+
     items.push({
       name,
       amount,
       frequency: freqStr as Frequency,
       category,
-      bankAccount
+      bankAccount,
+      ...(lastDueDate ? { lastDueDate } : {}),
     });
   }
 

@@ -40,3 +40,115 @@ export function getMonthlyByCategory(costs: CostItem[]): Record<string, number> 
   });
   return totals;
 }
+
+/** Returns the number of months in a frequency interval. */
+function frequencyToMonths(frequency: Frequency): number {
+  switch (frequency) {
+    case 'monthly': return 1;
+    case 'quarterly': return 3;
+    case 'half-yearly': return 6;
+    case 'yearly': return 12;
+    default: return 1;
+  }
+}
+
+/**
+ * Adds N months to a date, clamping the day to the last day of the target month.
+ * E.g., Jan 31 + 1 month = Feb 28 (or 29 in leap year).
+ */
+function addMonths(date: Date, months: number): Date {
+  const result = new Date(date);
+  const originalDay = date.getDate();
+  result.setMonth(result.getMonth() + months);
+  // If the day overflowed (e.g., 31 → next month's 3rd), clamp to last day
+  if (result.getDate() !== originalDay) {
+    result.setDate(0); // Sets to last day of previous month
+  }
+  return result;
+}
+
+/**
+ * Computes whole months elapsed between two dates (floored).
+ */
+function wholeMonthsBetween(from: Date, to: Date): number {
+  const months = (to.getFullYear() - from.getFullYear()) * 12
+    + (to.getMonth() - from.getMonth());
+  // If the day hasn't been reached yet in the current month, subtract 1
+  if (to.getDate() < from.getDate()) {
+    return Math.max(0, months - 1);
+  }
+  return Math.max(0, months);
+}
+
+/**
+ * Auto-advances due dates for costs where the next due date has passed.
+ * Returns { updatedCosts, advancedNames } where advancedNames lists
+ * the names of costs that were advanced.
+ */
+export function advanceDueDates(
+  costs: CostItem[]
+): { updatedCosts: CostItem[]; advancedNames: string[] } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const advancedNames: string[] = [];
+
+  const updatedCosts = costs.map((cost) => {
+    if (!cost.lastDueDate) return cost;
+
+    let lastDue = new Date(cost.lastDueDate);
+    lastDue.setHours(0, 0, 0, 0);
+    const interval = frequencyToMonths(cost.frequency);
+    let advanced = false;
+
+    // Keep advancing while the next due date is in the past or today
+    while (true) {
+      const nextDue = addMonths(lastDue, interval);
+      if (nextDue <= today) {
+        lastDue = nextDue;
+        advanced = true;
+      } else {
+        break;
+      }
+    }
+
+    if (advanced) {
+      advancedNames.push(cost.name);
+      return {
+        ...cost,
+        lastDueDate: lastDue.toISOString().split('T')[0],
+      };
+    }
+    return cost;
+  });
+
+  return { updatedCosts, advancedNames };
+}
+
+/**
+ * Calculates the minimum required balance per bank account.
+ * For each cost with a lastDueDate, computes: wholeMonthsElapsed × monthlyAverage.
+ * Sums per bank account.
+ */
+export function getMinimumBalanceByAccount(
+  costs: CostItem[]
+): Record<string, number> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const balances: Record<string, number> = {};
+
+  costs.forEach((cost) => {
+    if (!cost.lastDueDate) return;
+
+    const lastDue = new Date(cost.lastDueDate);
+    lastDue.setHours(0, 0, 0, 0);
+    const monthsElapsed = wholeMonthsBetween(lastDue, today);
+    const monthlyAvg = calculateMonthlyAverage(cost.amount, cost.frequency);
+    const accrued = monthsElapsed * monthlyAvg;
+
+    const account = cost.bankAccount.trim() || 'Unknown Account';
+    balances[account] = (balances[account] || 0) + accrued;
+  });
+
+  return balances;
+}
+

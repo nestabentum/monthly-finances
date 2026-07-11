@@ -7,6 +7,7 @@ export interface CostItem {
   frequency: Frequency;
   category: string;
   bankAccount: string;
+  lastDueDate?: string; // ISO date string, e.g. "2026-04-15"
 }
 
 export type SortField = 'name' | 'amount' | 'frequency' | 'category' | 'bankAccount' | 'monthlyAverage';

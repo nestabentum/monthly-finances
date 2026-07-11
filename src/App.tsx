@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ThemeToggle } from './components/ThemeToggle';
 import { DashboardSummary } from './components/DashboardSummary';
 import { CostForm } from './components/CostForm';
 import { CostTable } from './components/CostTable';
 import { AnalyticsSection } from './components/AnalyticsSection';
 import { CsvActions } from './components/CsvActions';
+import { MinBalanceModal } from './components/MinBalanceModal';
+import { NotificationToast } from './components/NotificationToast';
 import type { CostItem, SortField, SortDirection } from './types';
-import { calculateMonthlyAverage } from './utils/calculations';
+import { calculateMonthlyAverage, advanceDueDates } from './utils/calculations';
 import { CreditCard, Plus } from 'lucide-react';
 
 function App() {
@@ -38,6 +40,12 @@ function App() {
 
   const [editingCost, setEditingCost] = useState<CostItem | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isMinBalanceOpen, setIsMinBalanceOpen] = useState(false);
+
+  // --- Toast notification state ---
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastDetails, setToastDetails] = useState<string[]>([]);
+  const [isToastVisible, setIsToastVisible] = useState(false);
 
   // --- 3. Filter & Sort States ---
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -45,7 +53,24 @@ function App() {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  // --- 4. Theme & Local Storage Synchronizations ---
+  // --- 4. Auto-advance due dates on initial load ---
+  const hasAdvanced = useRef(false);
+  useEffect(() => {
+    if (hasAdvanced.current) return;
+    hasAdvanced.current = true;
+
+    const { updatedCosts, advancedNames } = advanceDueDates(costs);
+    if (advancedNames.length > 0) {
+      setCosts(updatedCosts);
+      setToastMessage('Due dates auto-advanced for:');
+      setToastDetails(advancedNames);
+      setIsToastVisible(true);
+    }
+    // Only run once on mount — costs from initial useState
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // --- 5. Theme & Local Storage Synchronizations ---
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
@@ -75,7 +100,7 @@ function App() {
     localStorage.setItem('monthly_costs', JSON.stringify(costs));
   }, [costs]);
 
-  // --- 5. Cost CRUD Handlers ---
+  // --- 6. Cost CRUD Handlers ---
   const handleAddOrUpdateCost = (costData: Omit<CostItem, 'id'> & { id?: string }) => {
     if (costData.id) {
       // Update
@@ -129,7 +154,7 @@ function App() {
     setEditingCost(null);
   };
 
-  // --- 6. Sorting and Filtering logic ---
+  // --- 7. Sorting and Filtering logic ---
   const filteredCosts = costs.filter((cost) => {
     const matchesCategory = categoryFilter === 'all' || cost.category.trim() === categoryFilter;
     const matchesAccount = bankAccountFilter === 'all' || cost.bankAccount.trim() === bankAccountFilter;
@@ -185,7 +210,7 @@ function App() {
       {/* Main Container */}
       <main className="app-main-content">
         {/* Top Summary Stats */}
-        <DashboardSummary costs={costs} />
+        <DashboardSummary costs={costs} onShowMinBalance={() => setIsMinBalanceOpen(true)} />
 
         {/* Table Records (Second on the page) */}
         <CostTable
@@ -219,6 +244,13 @@ function App() {
           </div>
         )}
 
+        {/* Min Balance Modal */}
+        <MinBalanceModal
+          isOpen={isMinBalanceOpen}
+          onClose={() => setIsMinBalanceOpen(false)}
+          costs={costs}
+        />
+
         {/* Floating Action Button (FAB) */}
         <button
           className={`fab-button ${isFormOpen ? 'open' : ''}`}
@@ -234,6 +266,14 @@ function App() {
           <Plus className="fab-icon" size={24} />
         </button>
       </main>
+
+      {/* Notification Toast */}
+      <NotificationToast
+        message={toastMessage}
+        details={toastDetails}
+        isVisible={isToastVisible}
+        onDismiss={() => setIsToastVisible(false)}
+      />
 
       {/* Footer */}
       <footer className="app-footer">

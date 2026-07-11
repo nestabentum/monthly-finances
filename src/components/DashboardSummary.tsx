@@ -1,13 +1,14 @@
 import React from 'react';
-import { CreditCard, Wallet } from 'lucide-react';
+import { CreditCard, Wallet, PiggyBank } from 'lucide-react';
 import type { CostItem } from '../types';
 import { getOverallTotalMonthly, getMonthlyByAccount } from '../utils/calculations';
 
 interface DashboardSummaryProps {
   costs: CostItem[];
+  onShowMinBalance: () => void;
 }
 
-export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ costs }) => {
+export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ costs, onShowMinBalance }) => {
   const overallTotal = getOverallTotalMonthly(costs);
   const accountTotals = getMonthlyByAccount(costs);
   const accounts = Object.keys(accountTotals).sort();
@@ -34,9 +35,19 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ costs }) => 
         <div className="card-value large-value">
           {formatEuro(overallTotal)}
         </div>
-        <p className="card-footer-text">
-          Calculated average across {costs.length} recurring {costs.length === 1 ? 'cost' : 'costs'}.
-        </p>
+        <div className="hero-card-footer">
+          <p className="card-footer-text">
+            Calculated average across {costs.length} recurring {costs.length === 1 ? 'cost' : 'costs'}.
+          </p>
+          <button
+            onClick={onShowMinBalance}
+            className="btn-min-balance touch-target"
+            title="Show minimum required bank balances"
+          >
+            <PiggyBank size={16} />
+            <span>Min. Balance</span>
+          </button>
+        </div>
       </div>
 
       {/* Account Breakdown Section */}

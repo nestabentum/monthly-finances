@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Check, X, Euro } from 'lucide-react';
+import { Plus, Check, X, Euro, Calendar } from 'lucide-react';
 import type { CostItem, Frequency } from '../types';
 
 interface CostFormProps {
@@ -15,6 +15,7 @@ export const CostForm: React.FC<CostFormProps> = ({ costs, onSubmit, editingCost
   const [frequency, setFrequency] = useState<Frequency>('monthly');
   const [category, setCategory] = useState('');
   const [bankAccount, setBankAccount] = useState('');
+  const [lastDueDate, setLastDueDate] = useState('');
 
   // Extract unique previously used categories and accounts for datalists
   const uniqueCategories = Array.from(new Set(costs.map((c) => c.category.trim()))).filter(Boolean).sort();
@@ -28,6 +29,7 @@ export const CostForm: React.FC<CostFormProps> = ({ costs, onSubmit, editingCost
       setFrequency(editingCost.frequency);
       setCategory(editingCost.category);
       setBankAccount(editingCost.bankAccount);
+      setLastDueDate(editingCost.lastDueDate || '');
     } else {
       resetForm();
     }
@@ -39,6 +41,7 @@ export const CostForm: React.FC<CostFormProps> = ({ costs, onSubmit, editingCost
     setFrequency('monthly');
     setCategory('');
     setBankAccount('');
+    setLastDueDate('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,6 +62,7 @@ export const CostForm: React.FC<CostFormProps> = ({ costs, onSubmit, editingCost
       frequency,
       category: category.trim(),
       bankAccount: bankAccount.trim(),
+      ...(lastDueDate ? { lastDueDate } : {}),
     });
 
     resetForm();
@@ -128,6 +132,21 @@ export const CostForm: React.FC<CostFormProps> = ({ costs, onSubmit, editingCost
               <option value="half-yearly">Half-Yearly</option>
               <option value="yearly">Yearly</option>
             </select>
+          </div>
+
+          {/* Last Due Date */}
+          <div className="form-group">
+            <label htmlFor="cost-last-due-date">Last Due Date</label>
+            <div className="input-with-icon">
+              <span className="input-icon"><Calendar size={16} /></span>
+              <input
+                type="date"
+                id="cost-last-due-date"
+                value={lastDueDate}
+                onChange={(e) => setLastDueDate(e.target.value)}
+                className="touch-target"
+              />
+            </div>
           </div>
 
           {/* Category */}
