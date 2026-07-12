@@ -68,16 +68,39 @@ function addMonths(date: Date, months: number): Date {
 }
 
 /**
- * Computes whole months elapsed between two dates (floored).
+ * Counts how many times the given salaryDay of a month has occurred
+ * strictly after `from` and on or before `to`.
+ * Clamps salaryDay to the last day of each month (e.g., 31 → 28 for Feb).
  */
-function wholeMonthsBetween(from: Date, to: Date): number {
-  const months = (to.getFullYear() - from.getFullYear()) * 12
-    + (to.getMonth() - from.getMonth());
-  // If the day hasn't been reached yet in the current month, subtract 1
-  if (to.getDate() < from.getDate()) {
-    return Math.max(0, months - 1);
+function countSalaryDaysSince(from: Date, to: Date, salaryDay: number): number {
+  let count = 0;
+  let year = from.getFullYear();
+  let month = from.getMonth();
+
+  while (true) {
+    // Clamp salary day to last day of month
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const clampedDay = Math.min(salaryDay, daysInMonth);
+    const target = new Date(year, month, clampedDay);
+    target.setHours(0, 0, 0, 0);
+
+    // Only count if strictly after `from` and on or before `to`
+    if (target > from && target <= to) {
+      count++;
+    }
+
+    // If this target is already past `to`, no point continuing
+    if (target > to) break;
+
+    // Move to next month
+    month++;
+    if (month > 11) {
+      month = 0;
+      year++;
+    }
   }
-  return Math.max(0, months);
+
+  return count;
 }
 
 /**
@@ -126,11 +149,13 @@ export function advanceDueDates(
 
 /**
  * Calculates the minimum required balance per bank account.
- * For each cost with a lastDueDate, computes: wholeMonthsElapsed × monthlyAverage.
+ * For each cost with a lastDueDate, counts how many salary days (configurable)
+ * have passed since the last due date, then multiplies by the monthly average.
  * Sums per bank account.
  */
 export function getMinimumBalanceByAccount(
-  costs: CostItem[]
+  costs: CostItem[],
+  salaryDay: number = 24
 ): Record<string, number> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -141,9 +166,9 @@ export function getMinimumBalanceByAccount(
 
     const lastDue = new Date(cost.lastDueDate);
     lastDue.setHours(0, 0, 0, 0);
-    const monthsElapsed = wholeMonthsBetween(lastDue, today);
+    const paychecksPassed = countSalaryDaysSince(lastDue, today, salaryDay);
     const monthlyAvg = calculateMonthlyAverage(cost.amount, cost.frequency);
-    const accrued = monthsElapsed * monthlyAvg;
+    const accrued = paychecksPassed * monthlyAvg;
 
     const account = cost.bankAccount.trim() || 'Unknown Account';
     balances[account] = (balances[account] || 0) + accrued;
@@ -151,4 +176,5 @@ export function getMinimumBalanceByAccount(
 
   return balances;
 }
+
 

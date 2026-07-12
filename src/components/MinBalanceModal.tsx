@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, PiggyBank, CreditCard, Info } from 'lucide-react';
+import { X, PiggyBank, CreditCard, Info, Calendar } from 'lucide-react';
 import type { CostItem } from '../types';
 import { getMinimumBalanceByAccount } from '../utils/calculations';
 
@@ -7,12 +7,20 @@ interface MinBalanceModalProps {
   isOpen: boolean;
   onClose: () => void;
   costs: CostItem[];
+  salaryDay: number;
+  onSalaryDayChange: (day: number) => void;
 }
 
-export const MinBalanceModal: React.FC<MinBalanceModalProps> = ({ isOpen, onClose, costs }) => {
+export const MinBalanceModal: React.FC<MinBalanceModalProps> = ({
+  isOpen,
+  onClose,
+  costs,
+  salaryDay,
+  onSalaryDayChange,
+}) => {
   if (!isOpen) return null;
 
-  const balances = getMinimumBalanceByAccount(costs);
+  const balances = getMinimumBalanceByAccount(costs, salaryDay);
   const accounts = Object.keys(balances).sort();
   const totalMinBalance = Object.values(balances).reduce((sum, val) => sum + val, 0);
   const costsWithDates = costs.filter((c) => c.lastDueDate).length;
@@ -25,6 +33,12 @@ export const MinBalanceModal: React.FC<MinBalanceModalProps> = ({ isOpen, onClos
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
+  };
+
+  const ordinalSuffix = (n: number) => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
   };
 
   return (
@@ -40,9 +54,28 @@ export const MinBalanceModal: React.FC<MinBalanceModalProps> = ({ isOpen, onClos
           </button>
         </div>
 
+        {/* Salary Day Setting */}
+        <div className="salary-day-setting">
+          <Calendar size={16} className="salary-day-icon" />
+          <label htmlFor="salary-day-input" className="salary-day-label">Salary day:</label>
+          <input
+            type="number"
+            id="salary-day-input"
+            min={1}
+            max={31}
+            value={salaryDay}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              if (!isNaN(val)) onSalaryDayChange(val);
+            }}
+            className="salary-day-input touch-target"
+          />
+          <span className="salary-day-suffix">of each month</span>
+        </div>
+
         <p className="min-balance-description">
-          Based on accrued months since each cost's last due date, here is the minimum amount 
-          that should be reserved in each bank account to cover upcoming bills.
+          Counts how many times the {ordinalSuffix(salaryDay)} has passed since each cost's last due date
+          to determine the minimum amount to reserve per account.
         </p>
 
         {accounts.length === 0 ? (

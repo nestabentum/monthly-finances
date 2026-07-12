@@ -47,6 +47,22 @@ function App() {
   const [toastDetails, setToastDetails] = useState<string[]>([]);
   const [isToastVisible, setIsToastVisible] = useState(false);
 
+  // --- Salary day setting (configurable, persisted) ---
+  const [salaryDay, setSalaryDay] = useState<number>(() => {
+    const saved = localStorage.getItem('salary_day');
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 31) return parsed;
+    }
+    return 24;
+  });
+
+  const handleSalaryDayChange = (day: number) => {
+    const clamped = Math.max(1, Math.min(31, day));
+    setSalaryDay(clamped);
+    localStorage.setItem('salary_day', String(clamped));
+  };
+
   // --- 3. Filter & Sort States ---
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [bankAccountFilter, setBankAccountFilter] = useState('all');
@@ -249,6 +265,8 @@ function App() {
           isOpen={isMinBalanceOpen}
           onClose={() => setIsMinBalanceOpen(false)}
           costs={costs}
+          salaryDay={salaryDay}
+          onSalaryDayChange={handleSalaryDayChange}
         />
 
         {/* Floating Action Button (FAB) */}
